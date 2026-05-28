@@ -34,3 +34,4 @@ jobs:
         with:
           name: avocasaid-apk
           path: extracted/avocasaid_easy_one_click/app/build/outputs/apk/debug/*.apk
+
