@@ -2,6 +2,9 @@ name: Build avocasaid APK
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
@@ -11,8 +14,13 @@ jobs:
       - name: Checkout files
         uses: actions/checkout@v4
 
-      - name: Unzip project
-        run: unzip avocasaid_easy_one_click.zip -d extracted
+      - name: Unzip uploaded project
+        run: |
+          ls -la
+          ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
+          echo "ZIP file is: $ZIP_FILE"
+          mkdir extracted
+          unzip "$ZIP_FILE" -d extracted
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -20,18 +28,19 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Build APK
         run: |
-          cd extracted/avocasaid_easy_one_click
-          chmod +x gradlew || true
-          ./gradlew assembleDebug || gradle assembleDebug
+          PROJECT_DIR=$(dirname "$(find extracted -name settings.gradle | head -n 1)")
+          echo "Project directory is: $PROJECT_DIR"
+          cd "$PROJECT_DIR"
+          chmod +x ./gradlew || true
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: avocasaid-apk
-          path: extracted/avocasaid_easy_one_click/app/build/outputs/apk/debug/*.apk
-
+          path: extracted/**/app/build/outputs/apk/debug/*.apk
