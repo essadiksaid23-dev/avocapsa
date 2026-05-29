@@ -1,48 +1,400 @@
-name: Build avocasaid APK
+package com.avocasaid.app;
 
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
+import android.app.AlertDialog;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Bundle;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import android.widget.Toast;
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+import androidx.appcompat.app.AppCompatActivity;
 
-    steps:
-      - name: Checkout files
-        uses: actions/checkout@v4
+public class MainActivity extends AppCompatActivity {
 
-      - name: Unzip uploaded project
-        run: |
-          ls -la
-          ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
-          echo "ZIP file is: $ZIP_FILE"
-          mkdir extracted
-          unzip "$ZIP_FILE" -d extracted
+    int navy = Color.rgb(38, 22, 82);
+    int light = Color.rgb(248, 249, 253);
+    int grey = Color.rgb(145, 145, 145);
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
+    LinearLayout casesContainer;
+    LinearLayout clientsContainer;
+    LinearLayout hearingsContainer;
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        ScrollView scroll = new ScrollView(this);
+        scroll.setBackgroundColor(light);
 
-      - name: Build APK
-        run: |
-          PROJECT_DIR=$(dirname "$(find extracted -name settings.gradle | head -n 1)")
-          echo "Project directory is: $PROJECT_DIR"
-          cd "$PROJECT_DIR"
-          gradle assembleDebug
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(20), dp(20), dp(20), dp(30));
+        scroll.addView(root);
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: avocasaid-apk
-          path: extracted/**/app/build/outputs/apk/debug/*.apk
+        // Header
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        root.addView(header, new LinearLayout.LayoutParams(-1, dp(90)));
+
+        TextView logo = new TextView(this);
+        logo.setText("⚖");
+        logo.setTextSize(36);
+        logo.setTextColor(Color.WHITE);
+        logo.setGravity(Gravity.CENTER);
+        logo.setBackground(round(navy, dp(22)));
+        header.addView(logo, new LinearLayout.LayoutParams(dp(70), dp(70)));
+
+        TextView title = new TextView(this);
+        title.setText("  avocasaid");
+        title.setTextSize(34);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setTextColor(navy);
+        header.addView(title, new LinearLayout.LayoutParams(0, -1, 1));
+
+        TextView bell = new TextView(this);
+        bell.setText("🔔");
+        bell.setTextSize(32);
+        bell.setGravity(Gravity.CENTER);
+        header.addView(bell, new LinearLayout.LayoutParams(dp(60), dp(60)));
+
+        // Hero card
+        LinearLayout hero = card();
+        hero.setPadding(dp(20), dp(20), dp(20), dp(20));
+        root.addView(hero);
+
+        TextView small = text("لوحة مكتب المحامي", 18, grey, false);
+        small.setGravity(Gravity.RIGHT);
+        hero.addView(small);
+
+        TextView headline = text("تدبير الملفات، الجلسات والوثائق", 27, Color.BLACK, true);
+        headline.setGravity(Gravity.RIGHT);
+        hero.addView(headline);
+
+        Button addCase = mainButton("+ ملف جديد");
+        addCase.setOnClickListener(v -> showAddCaseDialog());
+        hero.addView(addCase, new LinearLayout.LayoutParams(-1, dp(58)));
+
+        // Buttons row
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        actions.setGravity(Gravity.CENTER);
+        actions.setPadding(0, dp(15), 0, dp(5));
+        root.addView(actions);
+
+        Button clientsBtn = smallButton("الموكلين");
+        clientsBtn.setOnClickListener(v -> showAddClientDialog());
+        actions.addView(clientsBtn, new LinearLayout.LayoutParams(0, dp(55), 1));
+
+        Button hearingsBtn = smallButton("الجلسات");
+        hearingsBtn.setOnClickListener(v -> showAddHearingDialog());
+        actions.addView(hearingsBtn, new LinearLayout.LayoutParams(0, dp(55), 1));
+
+        Button docsBtn = smallButton("الوثائق");
+        docsBtn.setOnClickListener(v -> Toast.makeText(this, "قسم الوثائق سيتطور لاحقاً", Toast.LENGTH_LONG).show());
+        actions.addView(docsBtn, new LinearLayout.LayoutParams(0, dp(55), 1));
+
+        Button settingsBtn = smallButton("الإعدادات");
+        settingsBtn.setOnClickListener(v -> showSettingsDialog());
+        actions.addView(settingsBtn, new LinearLayout.LayoutParams(0, dp(55), 1));
+
+        // Stats
+        LinearLayout stats = new LinearLayout(this);
+        stats.setOrientation(LinearLayout.HORIZONTAL);
+        stats.setPadding(0, dp(20), 0, dp(20));
+        root.addView(stats);
+
+        stats.addView(statCard("24", "ملفات نشطة"), new LinearLayout.LayoutParams(0, dp(95), 1));
+        stats.addView(statCard("07", "جلسات"), new LinearLayout.LayoutParams(0, dp(95), 1));
+        stats.addView(statCard("38", "موكلين"), new LinearLayout.LayoutParams(0, dp(95), 1));
+
+        // Search
+        EditText search = new EditText(this);
+        search.setHint("بحث في الملفات أو الموكلين...");
+        search.setTextDirection(View.TEXT_DIRECTION_RTL);
+        search.setGravity(Gravity.RIGHT);
+        search.setTextSize(20);
+        search.setSingleLine(true);
+        search.setBackground(round(Color.WHITE, dp(25)));
+        search.setPadding(dp(20), 0, dp(20), 0);
+        root.addView(search, new LinearLayout.LayoutParams(-1, dp(65)));
+
+        // Cases section
+        TextView caseTitle = sectionTitle("الملفات المهمة");
+        root.addView(caseTitle);
+
+        casesContainer = new LinearLayout(this);
+        casesContainer.setOrientation(LinearLayout.VERTICAL);
+        root.addView(casesContainer);
+
+        addCaseCard("#2026/118", "ملف شغلي", "سعيد أ. • المحكمة الابتدائية", "غداً 09:30", "جلسة قريبة");
+        addCaseCard("#2026/044", "نزاع تجاري", "شركة النور • المحكمة التجارية", "03 يونيو", "إعداد مذكرة");
+        addCaseCard("#2025/390", "قسمة عقار", "فاطمة ب. • المحافظة العقارية", "10 يونيو", "تتبع");
+
+        // Clients section
+        TextView clientsTitle = sectionTitle("الموكلون");
+        root.addView(clientsTitle);
+
+        clientsContainer = new LinearLayout(this);
+        clientsContainer.setOrientation(LinearLayout.VERTICAL);
+        root.addView(clientsContainer);
+
+        addSimpleCard(clientsContainer, "سعيد أ.", "ملف شغلي - 2026/118");
+        addSimpleCard(clientsContainer, "شركة النور", "نزاع تجاري - 2026/044");
+
+        // Hearings section
+        TextView hearingsTitle = sectionTitle("الجلسات القادمة");
+        root.addView(hearingsTitle);
+
+        hearingsContainer = new LinearLayout(this);
+        hearingsContainer.setOrientation(LinearLayout.VERTICAL);
+        root.addView(hearingsContainer);
+
+        addSimpleCard(hearingsContainer, "غداً 09:30", "جلسة ملف شغلي بالمحكمة الابتدائية");
+        addSimpleCard(hearingsContainer, "03 يونيو", "جلسة نزاع تجاري");
+
+        setContentView(scroll);
+    }
+
+    void showAddCaseDialog() {
+        LinearLayout box = dialogBox();
+
+        EditText number = input("رقم الملف مثال: 2026/200");
+        EditText title = input("نوع الملف مثال: ملف مدني");
+        EditText client = input("اسم الموكل");
+        EditText court = input("المحكمة");
+        EditText date = input("تاريخ الجلسة");
+
+        box.addView(number);
+        box.addView(title);
+        box.addView(client);
+        box.addView(court);
+        box.addView(date);
+
+        new AlertDialog.Builder(this)
+                .setTitle("إضافة ملف جديد")
+                .setView(box)
+                .setPositiveButton("حفظ", (dialog, which) -> {
+                    String n = number.getText().toString().trim();
+                    String t = title.getText().toString().trim();
+                    String c = client.getText().toString().trim();
+                    String co = court.getText().toString().trim();
+                    String d = date.getText().toString().trim();
+
+                    if (n.isEmpty()) n = "بدون رقم";
+                    if (t.isEmpty()) t = "ملف جديد";
+                    if (c.isEmpty()) c = "موكل جديد";
+                    if (co.isEmpty()) co = "محكمة غير محددة";
+                    if (d.isEmpty()) d = "بدون تاريخ";
+
+                    addCaseCard("#" + n, t, c + " • " + co, d, "جديد");
+                    Toast.makeText(this, "تمت إضافة الملف", Toast.LENGTH_LONG).show();
+                })
+                .setNegativeButton("إلغاء", null)
+                .show();
+    }
+
+    void showAddClientDialog() {
+        LinearLayout box = dialogBox();
+
+        EditText name = input("اسم الموكل");
+        EditText phone = input("رقم الهاتف");
+        EditText note = input("ملاحظة");
+
+        box.addView(name);
+        box.addView(phone);
+        box.addView(note);
+
+        new AlertDialog.Builder(this)
+                .setTitle("إضافة موكل")
+                .setView(box)
+                .setPositiveButton("حفظ", (dialog, which) -> {
+                    String n = name.getText().toString().trim();
+                    String p = phone.getText().toString().trim();
+                    String no = note.getText().toString().trim();
+
+                    if (n.isEmpty()) n = "موكل جديد";
+                    if (p.isEmpty()) p = "بدون هاتف";
+                    if (no.isEmpty()) no = "بدون ملاحظة";
+
+                    addSimpleCard(clientsContainer, n, p + " - " + no);
+                    Toast.makeText(this, "تمت إضافة الموكل", Toast.LENGTH_LONG).show();
+                })
+                .setNegativeButton("إلغاء", null)
+                .show();
+    }
+
+    void showAddHearingDialog() {
+        LinearLayout box = dialogBox();
+
+        EditText file = input("رقم الملف");
+        EditText date = input("تاريخ الجلسة");
+        EditText note = input("موضوع الجلسة");
+
+        box.addView(file);
+        box.addView(date);
+        box.addView(note);
+
+        new AlertDialog.Builder(this)
+                .setTitle("إضافة جلسة")
+                .setView(box)
+                .setPositiveButton("حفظ", (dialog, which) -> {
+                    String f = file.getText().toString().trim();
+                    String d = date.getText().toString().trim();
+                    String n = note.getText().toString().trim();
+
+                    if (f.isEmpty()) f = "ملف غير محدد";
+                    if (d.isEmpty()) d = "بدون تاريخ";
+                    if (n.isEmpty()) n = "جلسة جديدة";
+
+                    addSimpleCard(hearingsContainer, d, n + " - " + f);
+                    Toast.makeText(this, "تمت إضافة الجلسة", Toast.LENGTH_LONG).show();
+                })
+                .setNegativeButton("إلغاء", null)
+                .show();
+    }
+
+    void showSettingsDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("الإعدادات")
+                .setMessage("تطبيق avocasaid\nنسخة أولية لتدبير مكتب المحامي.\n\nيمكن لاحقاً إضافة التخزين، التنبيهات، والطباعة.")
+                .setPositiveButton("حسناً", null)
+                .show();
+    }
+
+    void addCaseCard(String number, String title, String subtitle, String date, String status) {
+        LinearLayout card = card();
+        card.setPadding(dp(18), dp(15), dp(18), dp(15));
+
+        TextView line1 = text(number + "    " + title, 22, Color.BLACK, true);
+        line1.setGravity(Gravity.RIGHT);
+        card.addView(line1);
+
+        TextView line2 = text(subtitle, 17, grey, false);
+        line2.setGravity(Gravity.RIGHT);
+        card.addView(line2);
+
+        TextView line3 = text("🕘 " + date + "     " + status, 18, navy, true);
+        line3.setGravity(Gravity.RIGHT);
+        card.addView(line3);
+
+        card.setOnClickListener(v -> new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setMessage(number + "\n" + subtitle + "\n" + date + "\n" + status)
+                .setPositiveButton("إغلاق", null)
+                .show());
+
+        casesContainer.addView(card);
+    }
+
+    void addSimpleCard(LinearLayout container, String title, String subtitle) {
+        LinearLayout card = card();
+        card.setPadding(dp(18), dp(15), dp(18), dp(15));
+
+        TextView t = text(title, 21, Color.BLACK, true);
+        t.setGravity(Gravity.RIGHT);
+        card.addView(t);
+
+        TextView s = text(subtitle, 17, grey, false);
+        s.setGravity(Gravity.RIGHT);
+        card.addView(s);
+
+        card.setOnClickListener(v -> new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setMessage(subtitle)
+                .setPositiveButton("إغلاق", null)
+                .show());
+
+        container.addView(card);
+    }
+
+    LinearLayout card() {
+        LinearLayout l = new LinearLayout(this);
+        l.setOrientation(LinearLayout.VERTICAL);
+        l.setBackground(round(Color.WHITE, dp(25)));
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
+        p.setMargins(0, dp(12), 0, dp(12));
+        l.setLayoutParams(p);
+        return l;
+    }
+
+    TextView statCard(String number, String label) {
+        TextView t = new TextView(this);
+        t.setText(number + "\n" + label);
+        t.setTextSize(20);
+        t.setTextColor(navy);
+        t.setTypeface(Typeface.DEFAULT_BOLD);
+        t.setGravity(Gravity.CENTER);
+        t.setBackground(round(Color.WHITE, dp(22)));
+        return t;
+    }
+
+    TextView sectionTitle(String s) {
+        TextView t = text(s, 26, Color.BLACK, true);
+        t.setGravity(Gravity.RIGHT);
+        t.setPadding(0, dp(25), 0, dp(8));
+        return t;
+    }
+
+    Button mainButton(String s) {
+        Button b = new Button(this);
+        b.setText(s);
+        b.setTextSize(18);
+        b.setTextColor(Color.WHITE);
+        b.setBackground(round(navy, dp(18)));
+        return b;
+    }
+
+    Button smallButton(String s) {
+        Button b = new Button(this);
+        b.setText(s);
+        b.setTextSize(14);
+        b.setTextColor(Color.WHITE);
+        b.setBackground(round(navy, dp(14)));
+        return b;
+    }
+
+    TextView text(String s, int size, int color, boolean bold) {
+        TextView t = new TextView(this);
+        t.setText(s);
+        t.setTextSize(size);
+        t.setTextColor(color);
+        if (bold) t.setTypeface(Typeface.DEFAULT_BOLD);
+        return t;
+    }
+
+    EditText input(String hint) {
+        EditText e = new EditText(this);
+        e.setHint(hint);
+        e.setTextDirection(View.TEXT_DIRECTION_RTL);
+        e.setGravity(Gravity.RIGHT);
+        e.setSingleLine(true);
+        e.setPadding(dp(10), dp(8), dp(10), dp(8));
+        return e;
+    }
+
+    LinearLayout dialogBox() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(10), 0, dp(10), 0);
+        return box;
+    }
+
+    GradientDrawable round(int color, int radius) {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(color);
+        g.setCornerRadius(radius);
+        return g;
+    }
+
+    int dp(int v) {
+        return (int) (v * getResources().getDisplayMetrics().density);
+    }
+}
