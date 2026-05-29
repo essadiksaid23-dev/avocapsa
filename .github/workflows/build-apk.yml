@@ -1,258 +1,34 @@
-package com.example.avocasaid;
+name: Build Avocasaid APK
 
-import android.app.AlertDialog;
-import android.content.Intent;
-import android.graphics.Color;
-import android.net.Uri;
-import android.os.Bundle;
-import android.view.Gravity;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.LinearLayout;
-import android.widget.ScrollView;
-import android.widget.TextView;
-import android.widget.Toast;
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
-import androidx.appcompat.app.AppCompatActivity;
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
 
-public class MainActivity extends AppCompatActivity {
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
 
-    private LinearLayout mainLayout;
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
 
-    private final String phoneNumber = "+212600000000";
-    private final String whatsappNumber = "212600000000";
-    private final String emailAddress = "cabinet@example.com";
+      - name: Give Gradle permission
+        run: chmod +x ./gradlew
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        showHome();
-    }
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
 
-    private void showHome() {
-        ScrollView scrollView = new ScrollView(this);
-
-        mainLayout = new LinearLayout(this);
-        mainLayout.setOrientation(LinearLayout.VERTICAL);
-        mainLayout.setPadding(32, 48, 32, 32);
-        mainLayout.setBackgroundColor(Color.rgb(245, 247, 250));
-
-        scrollView.addView(mainLayout);
-
-        TextView title = new TextView(this);
-        title.setText("Avocasaid");
-        title.setTextSize(34);
-        title.setTextColor(Color.rgb(20, 35, 55));
-        title.setGravity(Gravity.CENTER);
-        title.setTypeface(null, 1);
-        mainLayout.addView(title);
-
-        TextView subtitle = new TextView(this);
-        subtitle.setText("إدارة مكتب المحامي والخدمات القانونية");
-        subtitle.setTextSize(17);
-        subtitle.setTextColor(Color.rgb(90, 90, 90));
-        subtitle.setGravity(Gravity.CENTER);
-        subtitle.setPadding(0, 8, 0, 30);
-        mainLayout.addView(subtitle);
-
-        addSectionTitle("إدارة المكتب");
-
-        addButton("ملفات القضايا", () -> showSimplePage(
-                "ملفات القضايا",
-                "هنا يمكن تتبع ملفات القضايا:\n\n" +
-                        "• رقم الملف\n" +
-                        "• اسم الموكل\n" +
-                        "• نوع القضية\n" +
-                        "• المحكمة\n" +
-                        "• تاريخ الجلسة\n" +
-                        "• ملاحظات الملف"
-        ));
-
-        addButton("الموكلون", () -> showSimplePage(
-                "الموكلون",
-                "هنا يمكن إدارة معلومات الموكلين:\n\n" +
-                        "• الاسم الكامل\n" +
-                        "• رقم الهاتف\n" +
-                        "• العنوان\n" +
-                        "• نوع الملف\n" +
-                        "• ملاحظات"
-        ));
-
-        addButton("المواعيد والجلسات", () -> showSimplePage(
-                "المواعيد والجلسات",
-                "هنا يمكن تسجيل المواعيد والجلسات:\n\n" +
-                        "• تاريخ الجلسة\n" +
-                        "• الساعة\n" +
-                        "• المحكمة\n" +
-                        "• القاعة\n" +
-                        "• الإجراء المطلوب"
-        ));
-
-        addButton("الأتعاب والمصاريف", () -> showSimplePage(
-                "الأتعاب والمصاريف",
-                "هنا يمكن تتبع الجانب المالي:\n\n" +
-                        "• الأتعاب المتفق عليها\n" +
-                        "• المبالغ المؤداة\n" +
-                        "• المصاريف\n" +
-                        "• الباقي\n" +
-                        "• تاريخ الأداء"
-        ));
-
-        addButton("الوثائق", () -> showSimplePage(
-                "الوثائق",
-                "هنا يمكن تنظيم الوثائق المرتبطة بالملفات:\n\n" +
-                        "• نسخ البطاقة الوطنية\n" +
-                        "• المقالات والمذكرات\n" +
-                        "• الأحكام والقرارات\n" +
-                        "• الوكالات\n" +
-                        "• المرفقات"
-        ));
-
-        addButton("إضافة ملاحظة مكتبية", this::showNoteDialog);
-
-        addSectionTitle("التواصل");
-
-        addButton("اتصال بالمكتب", this::callOffice);
-        addButton("مراسلة عبر واتساب", this::openWhatsapp);
-        addButton("إرسال بريد إلكتروني", this::sendEmail);
-
-        addSectionTitle("حول التطبيق");
-
-        addButton("معلومات المكتب", () -> showSimplePage(
-                "معلومات المكتب",
-                "Avocasaid\n\n" +
-                        "تطبيق مهني مخصص لتنظيم مكتب المحامي، وتسهيل تتبع الملفات والموكلين والجلسات والمصاريف والوثائق.\n\n" +
-                        "يمكن تطوير هذا التطبيق لاحقا بإضافة:\n" +
-                        "• قاعدة بيانات\n" +
-                        "• تسجيل الدخول\n" +
-                        "• حفظ الملفات\n" +
-                        "• إشعارات الجلسات\n" +
-                        "• تصدير PDF\n" +
-                        "• نسخ احتياطي"
-        ));
-
-        setContentView(scrollView);
-    }
-
-    private void addSectionTitle(String text) {
-        TextView section = new TextView(this);
-        section.setText(text);
-        section.setTextSize(21);
-        section.setTextColor(Color.rgb(30, 45, 70));
-        section.setTypeface(null, 1);
-        section.setPadding(0, 24, 0, 12);
-        mainLayout.addView(section);
-    }
-
-    private void addButton(String text, final Runnable action) {
-        Button button = new Button(this);
-        button.setText(text);
-        button.setTextSize(17);
-        button.setAllCaps(false);
-        button.setTextColor(Color.WHITE);
-        button.setBackgroundColor(Color.rgb(25, 70, 120));
-        button.setPadding(10, 10, 10, 10);
-
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                120
-        );
-        params.setMargins(0, 8, 0, 8);
-
-        mainLayout.addView(button, params);
-
-        button.setOnClickListener(v -> action.run());
-    }
-
-    private void showSimplePage(String pageTitle, String content) {
-        ScrollView scrollView = new ScrollView(this);
-
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(32, 48, 32, 32);
-        layout.setBackgroundColor(Color.rgb(245, 247, 250));
-
-        scrollView.addView(layout);
-
-        TextView title = new TextView(this);
-        title.setText(pageTitle);
-        title.setTextSize(28);
-        title.setTextColor(Color.rgb(20, 35, 55));
-        title.setTypeface(null, 1);
-        title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, 30);
-        layout.addView(title);
-
-        TextView body = new TextView(this);
-        body.setText(content);
-        body.setTextSize(18);
-        body.setTextColor(Color.rgb(45, 45, 45));
-        body.setLineSpacing(8, 1);
-        body.setPadding(10, 10, 10, 30);
-        layout.addView(body);
-
-        Button back = new Button(this);
-        back.setText("رجوع إلى الرئيسية");
-        back.setTextSize(17);
-        back.setAllCaps(false);
-        back.setTextColor(Color.WHITE);
-        back.setBackgroundColor(Color.rgb(25, 70, 120));
-        back.setOnClickListener(v -> showHome());
-
-        layout.addView(back, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                120
-        ));
-
-        setContentView(scrollView);
-    }
-
-    private void showNoteDialog() {
-        EditText input = new EditText(this);
-        input.setHint("اكتب الملاحظة هنا...");
-        input.setMinLines(4);
-        input.setGravity(Gravity.TOP);
-
-        new AlertDialog.Builder(this)
-                .setTitle("إضافة ملاحظة")
-                .setView(input)
-                .setPositiveButton("حفظ", (dialog, which) -> {
-                    String note = input.getText().toString().trim();
-                    if (note.isEmpty()) {
-                        Toast.makeText(this, "لم يتم إدخال أي ملاحظة", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(this, "تم حفظ الملاحظة مؤقتا", Toast.LENGTH_LONG).show();
-                    }
-                })
-                .setNegativeButton("إلغاء", null)
-                .show();
-    }
-
-    private void callOffice() {
-        Intent intent = new Intent(Intent.ACTION_DIAL);
-        intent.setData(Uri.parse("tel:" + phoneNumber));
-        startActivity(intent);
-    }
-
-    private void openWhatsapp() {
-        String message = "السلام عليكم، أريد التواصل مع مكتب Avocasaid.";
-        String url = "https://wa.me/" + whatsappNumber + "?text=" + Uri.encode(message);
-
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.setData(Uri.parse(url));
-        startActivity(intent);
-    }
-
-    private void sendEmail() {
-        Intent intent = new Intent(Intent.ACTION_SENDTO);
-        intent.setData(Uri.parse("mailto:" + emailAddress));
-        intent.putExtra(Intent.EXTRA_SUBJECT, "طلب تواصل عبر تطبيق Avocasaid");
-        intent.putExtra(Intent.EXTRA_TEXT, "السلام عليكم، أريد الاستفسار عن خدمات المكتب.");
-        startActivity(intent);
-    }
-
-    @Override
-    public void onBackPressed() {
-        showHome();
-    }
-}
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: avocasaid-apk
+          path: app/build/outputs/apk/debug/*.apk
